@@ -27,6 +27,33 @@ host can be downloaded before you rely on it. Every pull request runs the same
 gate in CI on Linux, and the unit tests on Windows, so a suite you can't run
 locally still runs before merge.
 
+### Running it in an editor
+
+    npm run dev                # build, then a VS Code window that loads this checkout
+    npm run dev -- --watch     # keep rebuilding; Reload Window is what takes the new bundles
+
+That window runs on a throwaway profile — its own user-data and extensions
+directories, printed so you can delete them — so the Marketplace copy of
+Patchbay can't load beside the development copy, nothing else you have
+installed is in the way, and workspace trust is settled rather than prompted.
+`--code <path>` names an editor nothing standard resolves; a folder argument
+says what the window opens on.
+
+F5 (Run Extension) is the other route: the debugger is attached and the window
+uses your own profile, which is what you want when the question is inside the
+extension host. Either way nothing reloads a running window by itself — `npm
+run watch` or `dev --watch` rewrites `out/`, and Command Palette → **Reload
+Window** loads it.
+
+To install a built package instead of a development load:
+
+    npm run package                                  # vsce, a devDependency already
+    code --install-extension acp-patchbay-<version>.vsix
+
+A chat still needs an agent to talk to: the CLIs Patchbay speaks ACP with
+(`claude`, `codex`, `opencode`, `gemini`, …) come from their own vendors, and
+Settings → Agents says which ones it found.
+
 ## Pull requests
 
 - Keep each PR to **one concern**; unrelated changes belong in separate PRs.

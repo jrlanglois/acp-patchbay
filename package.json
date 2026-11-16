@@ -202,7 +202,8 @@
     "vscode:prepublish": "node esbuild.mjs --production",
     "package": "vsce package --no-dependencies",
     "ui:shots": "node scripts/ui-gate/shots.mjs",
-    "check": "node scripts/check.mjs"
+    "check": "node scripts/check.mjs",
+    "dev": "node scripts/dev.mjs"
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^2.4.0",
