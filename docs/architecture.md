@@ -1476,15 +1476,21 @@ with it.
   remote host), so non-images are written to the session's own folder at add
   time and linked from there. Directory drops are refused in the current release — a deliberate scope decision:
   expanding a tree is policy (depth, excludes), not a default. What a
-  webview can receive, as observed 2026-09-19 on VS Code 1.10x–1.138 and
-  verified in its sources: an OS file drop reaches the composer only while
-  **Shift** is held — without it the webview host page hands a file drag to
-  the workbench, which opens the file as an editor (editor area) or drops it
-  on nothing (sidebar); accepted as a limitation. Drags that start inside
-  the VS Code window (editor tabs, Explorer entries) never reach any
-  webview: the workbench blocks every webview iframe for the drag's
-  duration, and upstream closed the request for webview drop events as out
-  of scope. `@` in the prompt covers open editors and workspace files.
+  webview can receive, re-verified 2026-11-16 on VS Code 1.146 by logging
+  every drag event the frame sees: an OS file drop arrives with **or**
+  without **Shift** — a drop from outside the editor belongs to the frame,
+  and it keeps it. A drag that starts inside the window never arrives: the
+  workbench sets `pointer-events:none` on the iframe at the `dragstart` of
+  any drag it starts, and only a `dragover` held with Shift makes the frame
+  hit-testable again — Shift held through a drag from an Explorer entry, and
+  through one from an editor tab, delivered nothing either way. The
+  composer still reads the workbench's own drag formats
+  (`composer/dropped-resources.ts`), so a cross-frame drop lands and an
+  in-window one will the day upstream lifts the block
+  (microsoft/vscode#182449; the ask for an opt-out, #346855, is open). The
+  routes that always work for a file the editor knows about are the file's
+  own right-click menu — **Add File to Patchbay Context**
+  (`acpPatchbay.addFilesToContext`) — and `@` in the prompt.
 
 ## MCP servers
 

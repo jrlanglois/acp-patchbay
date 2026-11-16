@@ -152,11 +152,13 @@ deliverable.
   alongside the chat.
 - User can paste an image and any agent receives it in the best form it supports —
   paste is never disabled.
-- User can attach files by paste, by picker, or by dropping from the OS with
-  Shift held (without Shift, VS Code takes the drop for itself). Editor tabs
-  and Explorer entries cannot be dropped onto the composer — VS Code blocks
-  every webview for the duration of an in-window drag — so open editors and
-  workspace files are reached through `@` in the prompt.
+- User can attach files by paste, by picker, by a file's own right-click menu
+  (**Add File to Patchbay Context**, in the Explorer or on an editor tab), or by
+  dropping in a file from outside VS Code — that works with or without Shift.
+  A drag that starts inside the window never reaches the composer: VS Code
+  switches its webviews off for the duration of any drag it starts
+  (microsoft/vscode#182449), so open editors and workspace files are also
+  reached through `@` in the prompt.
 - User can explicitly add editor state to the prompt: current selection, current
   file, diagnostics.
 - The open workspace's folders are the session's context roots, and the user

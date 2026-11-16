@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+- **A file's right-click menu adds it to the chat.** A file in the Explorer, and
+  an editor tab's tab menu, now carry **Add File to Patchbay Context**, which
+  attaches it to the composer the way a drop would. In the Explorer the entry
+  never appeared: its rule read `view == explorer`, and that key holds the files
+  view's own id, `workbench.explorer.fileView`, so the rule was never true.
+- **Dropping in a file from outside VS Code works without Shift.** The docs said
+  the key had to be held; it doesn't. What never reaches the composer is a drag
+  that starts inside the window: the workbench sets `pointer-events:none` on the
+  webview iframe at the `dragstart` of any drag it starts, and only a
+  Shift-held `dragover` makes the frame reachable again. Probed on 1.146 by
+  logging every drag event the frame sees, a drag from an Explorer entry or an
+  editor tab arrived neither way (microsoft/vscode#182449), so the right-click
+  entry above is the route for a file the editor already knows about. The
+  composer still reads the workbench's own drag formats, so a cross-frame drop
+  lands and an in-window one will the day upstream lifts the block.
+- **Installing OpenCode V2 on Windows stops failing at `tar exited 128`.** The
+  installer asked PATH for `tar`, and an editor started from a Git Bash shell
+  hands its extension host a PATH where GNU tar comes first: it read the
+  staging path `C:\…\download.zip` as `host:path` and died. It now names
+  System32's `tar.exe` — bsdtar, which reads `.zip` and takes Windows paths —
+  and a tool that won't start reports the path it tried.
+
 ## 0.90.4 — 2026-11-15
 
 Bug fixes: local-file links in agent answers open in the editor, picker rows

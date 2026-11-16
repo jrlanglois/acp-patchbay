@@ -420,6 +420,33 @@ export class OrchestratorHost {
     await this.focusComposer();
   }
 
+  /** Explorer and editor-tab right-click ("Add File to Patchbay Context") —
+   * the route that works regardless of how VS Code rules on drags into a
+   * webview frame (it blocks them without Shift: microsoft/vscode#182449).
+   * Multi-selection comes through as the second argument in the Explorer;
+   * every named file goes in through the same action door as a decoded
+   * drop, then the composer takes the keyboard — the same flow the
+   * selection command gives. */
+  async addFilesToContextCommand(target?: vscode.Uri, all?: vscode.Uri[]): Promise<void> {
+    const patchbaySessionId = this.orchestrator.agentView.current.activePatchbaySessionId;
+    if (patchbaySessionId === null) {
+      vscode.window.showInformationMessage("Start a Patchbay session first, then add a file.");
+      return;
+    }
+    const uris = all !== undefined && all.length > 0 ? all : target !== undefined ? [target] : [];
+    if (uris.length === 0) return;
+    // Only local-disk files stage here: the chip carries a host path, so an
+    // untitled tab or a remote workspace's file has nothing on this machine
+    // to attach.
+    const stageable = uris.filter((uri) => uri.scheme === "file");
+    if (stageable.length === 0) {
+      vscode.window.showWarningMessage("Only files stored on this machine can be attached.");
+      return;
+    }
+    for (const uri of stageable) this.handleAction({ kind: "addDroppedPathContext", patchbaySessionId, path: uri.fsPath });
+    await this.focusComposer();
+  }
+
   /** Opens a file in the editor its type calls for (text, image preview,
    * …). A location line puts the cursor on that line's first non-blank
    * character, scrolled into view; a file with no text to land in (binary)
@@ -1079,6 +1106,9 @@ export class OrchestratorHost {
         await this.orchestrator.sessions
           .addDroppedFile(action.patchbaySessionId, { chipId: chipId(), name: action.name, mimeType: action.mimeType, base64: action.base64 });
         break;
+      case "addDroppedPathContext":
+        await this.stageFileContext(action.patchbaySessionId, vscode.Uri.file(action.path));
+        break;
       case "addFilePickerContext":
         await this.addFilePickerContext(action.patchbaySessionId);
         break;
@@ -1186,14 +1216,7 @@ export class OrchestratorHost {
     await this.saveRoot(target, uri.fsPath);
   }
 
-  /** "Attach file" picker — the host-side byte producer: the file already
-   * has a host path, so no bytes cross the webview. Images in the wire set
-   * ride as image chips (bytes read here); everything else — including
-   * images too big or too exotic for the wire — becomes an attachment chip
-   * at its real path, whose resource_link the agent reads itself. That
-   * fallback is strictly honest, so nothing picked is ever refused. A
-   * picked file is at rest on disk, hence a link, not a text snapshot: the
-   * inline `file` chip is for the editor buffer, which may be dirty. */
+  /** "Attach file" picker: one host path in, staged as context. */
   private async addFilePickerContext(patchbaySessionId: PatchbaySessionId): Promise<void> {
     const picked = await vscode.window.showOpenDialog({
       canSelectFolders: false,
@@ -1203,9 +1226,28 @@ export class OrchestratorHost {
     });
     const uri = picked?.[0];
     if (uri === undefined) return;
+    await this.stageFileContext(patchbaySessionId, uri);
+  }
+
+  /** One file into context — the picker's pick, a drop's decoded path, and
+   * the Explorer/tab right-click's target share this staging, so a chip
+   * means the same thing however it arrived. The picked file already has a
+   * host path, so no bytes cross the webview: images in the wire set ride
+   * as image chips (bytes read here); everything else — including images
+   * too big or too exotic for the wire — becomes an attachment chip at its
+   * real path, whose resource_link the agent reads itself. That fallback is
+   * strictly honest, so nothing picked is ever refused. A picked file is at
+   * rest on disk, hence a link, not a text snapshot: the inline `file` chip
+   * is for the editor buffer, which may be dirty. A directory is refused
+   * here as deliberately as the composer refuses dropped folders. */
+  private async stageFileContext(patchbaySessionId: PatchbaySessionId, uri: vscode.Uri): Promise<void> {
     const name = basename(uri.fsPath);
-    const { size } = await vscode.workspace.fs.stat(uri);
-    const form = pickedFileForm(name, size, this.orchestrator.preferences.get().attachmentMaxMB * 1024 * 1024);
+    const stat = await vscode.workspace.fs.stat(uri);
+    if (stat.type === vscode.FileType.Directory) {
+      vscode.window.showWarningMessage("Folders can't be attached — drop files individually");
+      return;
+    }
+    const form = pickedFileForm(name, stat.size, this.orchestrator.preferences.get().attachmentMaxMB * 1024 * 1024);
     if (form.kind === "image") {
       const bytes = await vscode.workspace.fs.readFile(uri);
       await this.orchestrator.sessions.addContext(patchbaySessionId, {

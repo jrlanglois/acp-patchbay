@@ -96,7 +96,12 @@ async function hostCopy(p, locator) {
 }
 
 async function page(browser, themeName, { width, height }) {
-  const p = await browser.newPage({ viewport: { width, height } });
+  // The gate's literal expectations — a cost of "$0.42", "50K" tokens — are
+  // what en-US renders, so the page's locale is pinned rather than left to
+  // whatever locale the machine running the gate resolves (en-CA says
+  // "US$0.42", which would fail checks no code changed). A date read-out is
+  // never pinned this way: a scenario asks the page itself what it says.
+  const p = await browser.newPage({ locale: "en-US", viewport: { width, height } });
   p.on("pageerror", (e) => {
     // fixture pages must render clean — a page error is itself a failure
     console.log(`FAIL  [${themeName}] pageerror: ${String(e).slice(0, 200)}`);
@@ -902,6 +907,34 @@ for (const theme of Object.keys(THEMES)) {
     return { over, dropped, name: action?.name, base64: action?.base64 };
   });
   check(`[${theme}] dropped file leaves as an attachment action with its bytes`, drop.over && drop.dropped && drop.name === "note.txt" && drop.base64 === "aGVsbG8=");
+
+  // ── a drop that started inside VS Code (an Explorer entry, an editor tab):
+  // the workbench names the file on the drag and carries no bytes, so it
+  // leaves as one path the host stages — and it must not also feed the
+  // bytes lane or the folder notice ──
+  const internal = await p.evaluate(async () => {
+    const composer = document.querySelector(".composer");
+    const dt = new DataTransfer();
+    dt.setData("text/uri-list", "file:///d:/work/notes.md");
+    dt.setData("application/vnd.code.uri-list", "file:///d:/work/notes.md\r\nfile:///D:/work/other.md");
+    dt.setData("CodeEditors", JSON.stringify([{ resource: "file:///d:/work/notes.md" }]));
+    const fire = (type) => !composer.dispatchEvent(new DragEvent(type, { dataTransfer: dt, bubbles: true, cancelable: true }));
+    const over = fire("dragover");
+    const dropped = fire("drop");
+    await new Promise((r) => setTimeout(r, 200));
+    const paths = window.__actions.filter((a) => a.kind === "addDroppedPathContext").map((a) => a.path);
+    return {
+      over,
+      dropped,
+      paths,
+      bytes: window.__actions.filter((a) => a.kind === "addDroppedFileContext").length,
+      notice: document.querySelector(".toast")?.textContent ?? "",
+    };
+  });
+  check(
+    `[${theme}] a VS Code-internal drop leaves its paths, its bytes lane untouched`,
+    internal.over && internal.dropped && internal.paths.length === 2 && internal.paths[0] === "D:\\work\\notes.md" && internal.paths[1] === "D:\\work\\other.md" && internal.bytes === 1 && !internal.notice.includes("Folders can't be attached"),
+  );
   await p.close();
 
   // ── chat at the narrowest side-panel width: unbreakable tokens (a URL as

@@ -148,6 +148,11 @@
         "category": "Patchbay"
       },
       {
+        "command": "acpPatchbay.addFilesToContext",
+        "title": "Add File to Patchbay Context",
+        "category": "Patchbay"
+      },
+      {
         "command": "acpPatchbay.wireLog",
         "title": "Wire Log — Toggle / Extend",
         "category": "Patchbay"
@@ -167,7 +172,23 @@
           "group": "9_cutcopypaste"
         }
       ],
+      "explorer/context": [
+        {
+          "command": "acpPatchbay.addFilesToContext",
+          "when": "!explorerResourceIsFolder",
+          "group": "modification"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "acpPatchbay.addFilesToContext"
+        }
+      ],
       "commandPalette": [
+        {
+          "command": "acpPatchbay.addFilesToContext",
+          "when": "false"
+        },
         {
           "command": "acpPatchbay.detachAgentView",
           "when": "acpPatchbay.detachEnabled"

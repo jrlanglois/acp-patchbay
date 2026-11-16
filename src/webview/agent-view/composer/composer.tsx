@@ -22,6 +22,7 @@ import { useActions } from "../../shared/actions";
 import { Icon } from "../../shared/icon";
 import type { SessionTotals } from "../chat/view-model";
 import { ingestFiles } from "./ingress";
+import { droppedResources } from "./dropped-resources";
 import { COMPOSER_HAS_TEXT, composerControls } from "./composer-controls";
 import type { RootsControls } from "./roots-controls";
 import { Knobs } from "./knobs";
@@ -147,13 +148,29 @@ export function Composer(props: {
     const items = [...e.dataTransfer.items];
     const dirs = items.filter((it) => it.webkitGetAsEntry?.()?.isDirectory === true).length;
     if (dirs > 0) props.onNotice("Folders can't be attached — drop files individually");
-    // Bytes are the only thing a drop can carry here. An OS file drop
-    // reaches this handler only while Shift is held: without it, VS Code's
-    // webview host hands the drag to the workbench before the drop lands
-    // (observed, not yet defeated). A drag that starts inside the VS Code
-    // window (an editor tab, an Explorer entry) never reaches any webview —
-    // the platform blocks the iframe for the drag's duration. `@` covers
-    // open editors and workspace files; paste covers the rest.
+    // Two different drops land here, and each needs a different ingress.
+    // An OS file drop (from Explorer outside VS Code) carries its own File
+    // items — the bytes lane below is its only route: the platform hides a
+    // dropped file's path from a webview frame. A drag that started inside
+    // VS Code — an Explorer entry, an editor tab — carries no File items at
+    // all, only the workbench's own formats naming the file; decoded to a
+    // path it stages host-side, exactly like the Attach file picker. Both
+    // routes first need the drag to reach this frame, and VS Code decides
+    // that: for any drag the workbench starts, its webview drag blocker sets
+    // pointer-events:none on the iframe at dragstart and re-blocks on every
+    // dragover that is not Shift-held (microsoft/vscode#182449; the ask for
+    // an opt-out, #346855, is open). Probed on 1.146 (2026-11-16), logging
+    // every drag event the frame sees: an OS file drop arrives with or
+    // without Shift, no in-window drag arrived either way. So the file's own
+    // right-click menu ("Add File to Patchbay Context") and `@` are the
+    // routes that always work, and an unreadable payload says so. The
+    // decode stays: it carries a cross-frame drop today, and an in-window
+    // one the day upstream lifts the block.
+    const resources = droppedResources(e.dataTransfer);
+    for (const path of resources.paths) send({ kind: "addDroppedPathContext", patchbaySessionId, path });
+    if (resources.opaque) {
+      props.onNotice("VS Code hid what that drag carried — right-click the file and choose Add File to Patchbay Context");
+    }
     const files = items
       .map((it) => (it.kind === "file" && it.webkitGetAsEntry?.()?.isDirectory !== true ? it.getAsFile() : null))
       .filter((f): f is File => f !== null);

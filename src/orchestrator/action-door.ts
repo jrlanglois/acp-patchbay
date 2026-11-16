@@ -72,6 +72,7 @@ export const ACTION_FAILURE: Readonly<Record<Action["kind"], string | null>> = {
   addDiagnosticsContext: "The problems weren't added",
   addImageContext: "The image wasn't attached",
   addDroppedFileContext: "The file wasn't attached",
+  addDroppedPathContext: "The file wasn't attached",
   addFilePickerContext: "The file wasn't attached",
   removeContextChip: "The attachment wasn't removed",
   cancelMcpServerConnect: "The add wasn't cancelled",

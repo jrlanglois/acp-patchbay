@@ -86,6 +86,17 @@ export function activate(context: vscode.ExtensionContext): {
     vscode.commands.registerCommand("acpPatchbay.addSelectionToContext", () =>
       host.addSelectionToContextCommand(),
     ),
+    // The Explorer/tab menus pass the right-clicked entry, then the full
+    // selection. The manifest keeps the entry off folders (no honest meaning
+    // for one here) and out of the command palette (nothing to pass); both
+    // are bypassable — keybindings and programmatic calls reach the command
+    // with no uri or with an untitled tab, and the host command refuses what
+    // it can't stage.
+    vscode.commands.registerCommand(
+      "acpPatchbay.addFilesToContext",
+      (target: vscode.Uri | undefined, all: vscode.Uri[] | undefined) =>
+        host.addFilesToContextCommand(target, all),
+    ),
     vscode.commands.registerCommand("acpPatchbay.wireLog", () => host.wireLogCommand()),
     // The status bar item's door: the chat, ready to type into.
     vscode.commands.registerCommand("acpPatchbay.focusComposer", () => host.focusComposer()),

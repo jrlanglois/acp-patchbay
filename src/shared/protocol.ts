@@ -391,6 +391,14 @@ export type Action =
    * the chip rides the prompt as a resource_link to it. Empty mimeType =
    * the platform didn't know; it stays unknown, never guessed. */
   | { kind: "addDroppedFileContext"; patchbaySessionId: PatchbaySessionId; name: string; mimeType: string; base64: string }
+  /** A drop that named a file instead of carrying its bytes: VS Code's own
+   * drags (an Explorer entry, an editor tab — see composer/dropped-resources
+   * .ts) put the file's `file://` uri on the drag, and the webview decoded it
+   * to a path. The host stats and reads the path itself and stages the chip
+   * the Attach file picker stages — no bytes cross here, and a path the host
+   * can't see (a remote workspace's uri decoded to nothing) fails like any
+   * other action. */
+  | { kind: "addDroppedPathContext"; patchbaySessionId: PatchbaySessionId; path: string }
   | { kind: "addFilePickerContext"; patchbaySessionId: PatchbaySessionId }
   /** The `@` mention picker's workspace tier: the webview never touches the
    * filesystem — it asks, the orchestrator runs
